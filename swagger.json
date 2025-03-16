@@ -1,0 +1,93 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "ImageServiceApi",
+    "description": "API for Image Upload and Storage",
+    "version": "1.0"
+  },
+  "schemes": ["https"],
+  "paths": {
+    "/upload": {
+      "post": {
+        "summary": "Upload Image",
+        "operationId": "uploadImage",
+        "consumes": ["multipart/form-data"],
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "Image uploaded successfully"
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${ImageServiceLambda}/invocations"
+        }
+      }
+    },
+    "/images": {
+      "get": {
+        "summary": "List Images",
+        "operationId": "listImages",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "List of images"
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${ImageServiceLambda}/invocations"
+        }
+      }
+    },
+    "/images/{imageId}": {
+      "get": {
+        "summary": "View Image",
+        "operationId": "viewImage",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image details"
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${ImageServiceLambda}/invocations"
+        }
+      },
+      "delete": {
+        "summary": "Delete Image",
+        "operationId": "deleteImage",
+        "parameters": [
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image deleted successfully"
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:${region}:lambda:path/2015-03-31/functions/${ImageServiceLambda}/invocations"
+        }
+      }
+    }
+  }
+}

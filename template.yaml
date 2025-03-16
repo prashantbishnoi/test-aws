@@ -1,0 +1,180 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation template to deploy an image upload service using API Gateway, Lambda, S3, and DynamoDB. This service allows users to upload images with metadata, list stored images with filters, view/download images, and delete images."
+
+Parameters:
+  DeploymentS3Bucket:
+    Type: String
+    Description: "S3 bucket for uploading lambda code"
+    Default: my-default-code-bucket-pb
+
+Resources:
+  ImageS3Bucket:
+    Type: AWS::S3::Bucket
+
+  ImageMetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ImageMetadata
+      AttributeDefinitions:
+        - AttributeName: imageId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: imageId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  ImageServiceLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ImageServiceFunction
+      Runtime: python3.8
+      Handler: imager.lambda_handler
+      Code:
+        S3Bucket: !Ref DeploymentS3Bucket
+        S3Key: image_service.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref ImageS3Bucket
+          TABLE_NAME: !Ref ImageMetadataTable
+
+  ImageApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: ImageApi
+      Body:
+        swagger: "2.0"
+        info:
+          title: "ImageServiceApi"
+          description: "API for Image Upload and Storage"
+          version: "1.0"
+        schemes:
+          - "https"
+        paths:
+          /upload:
+            post:
+              summary: "Upload Image"
+              operationId: "uploadImage"
+              consumes:
+                - "multipart/form-data"
+              produces:
+                - "application/json"
+              responses:
+                "200":
+                  description: "Image uploaded successfully"
+              x-amazon-apigateway-integration:
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ImageServiceLambda.Arn}/invocations"
+          /images:
+            get:
+              summary: "List Images"
+              operationId: "listImages"
+              produces:
+                - "application/json"
+              responses:
+                "200":
+                  description: "List of images"
+              x-amazon-apigateway-integration:
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ImageServiceLambda.Arn}/invocations"
+          /images/{imageId}:
+            get:
+              summary: "View Image"
+              operationId: "viewImage"
+              produces:
+                - "application/json"
+              parameters:
+                - name: "imageId"
+                  in: "path"
+                  required: true
+                  type: "string"
+              responses:
+                "200":
+                  description: "Image details"
+              x-amazon-apigateway-integration:
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ImageServiceLambda.Arn}/invocations"
+            delete:
+              summary: "Delete Image"
+              operationId: "deleteImage"
+              parameters:
+                - name: "imageId"
+                  in: "path"
+                  required: true
+                  type: "string"
+              responses:
+                "200":
+                  description: "Image deleted successfully"
+              x-amazon-apigateway-integration:
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ImageServiceLambda.Arn}/invocations"
+
+  ImageApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref ImageApi
+      StageName: prod
+    DependsOn: ImageApi
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaS3DynamoDBPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: !Sub "arn:aws:s3:::${ImageS3Bucket}/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:Scan
+                  - dynamodb:DeleteItem
+                Resource: !GetAtt ImageMetadataTable.Arn
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ImageServiceLambda
+      Principal: apigateway.amazonaws.com
+
+Outputs:
+  ApiGatewayEndpoint:
+    Description: "API Gateway endpoint URL for Image API"
+    Value: !Sub "https://${ImageApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+
+  DynamoDBTableName:
+    Description: "DynamoDB table for storing image metadata"
+    Value: !Ref ImageMetadataTable
+
+  LambdaFunctionName:
+    Description: "Lambda function handling API requests"
+    Value: !Ref ImageServiceLambda
+
+  S3BucketName:
+    Description: "S3 bucket for storing uploaded images"
+    Value: !Ref ImageS3Bucket
+
+  DeploymentS3Bucket:
+    Description: "S3 bucket for uploading lambda code"
+    Value: !Ref DeploymentS3Bucket
