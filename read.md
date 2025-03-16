@@ -102,8 +102,7 @@ Currently, the API does not enforce authentication, but IAM-based authorization 
 
 ## Deployment & Usage
 - Deploy the CloudFormation template to set up resources.
-- Use `swagger.json` to import API definitions into API Gateway.
-- Upload the Lambda function code zip and `swagger.json` to the same bucket mentioned in the cloudformation parameter:
+- Upload the Lambda function code zip to the bucket mentioned in the cloudformation parameter:
 - Deploy the CloudFormation stack to apply the changes.
 - Invoke the API using tools like Postman or `curl`.
 

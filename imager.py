@@ -16,9 +16,9 @@ def lambda_handler(event, context):
         return handler.upload_image(event)
     elif http_method == 'GET' and resource == '/images':
         return handler.list_images(event)
-    elif http_method == 'GET' and resource.startswith('/image/'):
+    elif http_method == 'GET' and resource.startswith('/images/'):
         return handler.view_image(event)
-    elif http_method == 'DELETE' and resource.startswith('/image/'):
+    elif http_method == 'DELETE' and resource.startswith('/images/'):
         return handler.delete_image(event)
     else:
         logger.error("Invalid request received")
